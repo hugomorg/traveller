@@ -24,3 +24,4 @@ traveller-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+tags
