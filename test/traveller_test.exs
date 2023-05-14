@@ -91,6 +91,31 @@ defmodule TravellerTest do
       assert Enum.take(stream, 4) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
 
+    test "cursor can be a list of fields - any sort directions", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      alice_wayne = TestRepo.insert!(%Person{first_name: "Alice", last_name: "Wayne"})
+      lisa_wayne = TestRepo.insert!(%Person{first_name: "Lisa", last_name: "Wayne"})
+
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          cursor: [desc: :last_name, asc: :first_name],
+          start_after: ["Z", "Z"],
+          next_cursor: fn results ->
+            last = List.last(results)
+            [last.first_name, last.last_name]
+          end
+        )
+
+      assert Enum.to_list(stream) == [
+               [alice_wayne, bruce_wayne, lisa_wayne, severus_snape, albus_dumbledore]
+             ]
+    end
+
     test "cursor can be specified in desc order", %{
       albus_dumbledore: albus_dumbledore,
       bruce_wayne: bruce_wayne,

@@ -121,18 +121,7 @@ defmodule Traveller do
     {_, query} =
       cursor
       |> Enum.zip(start_after)
-      |> Enum.reduce(schema, fn
-        {field, cursor}, {{prev_field, prev_cursor}, q} ->
-          {{field, cursor},
-           or_where(
-             q,
-             [s],
-             field(s, ^prev_field) == ^prev_cursor and field(s, ^field) > ^cursor
-           )}
-
-        {field, cursor}, q ->
-          {{field, cursor}, or_where(q, [s], field(s, ^field) > ^cursor)}
-      end)
+      |> Enum.reduce(schema, &build_comparison_query/2)
 
     query
     |> order_by(^cursor)
@@ -169,5 +158,41 @@ defmodule Traveller do
       results ->
         {results, %{params | offset: offset + chunk_size}}
     end
+  end
+
+  # If multi-field cursor, and first n fields are equal, keep comparing
+  defp build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query}) do
+    {{field, cursor},
+     or_where(
+       query,
+       [s],
+       field(s, ^prev_field) == ^prev_cursor and field(s, ^field) > ^cursor
+     )}
+  end
+
+  defp build_comparison_query({{:desc, field}, cursor}, {{prev_field, prev_cursor}, query}) do
+    {{field, cursor},
+     or_where(
+       query,
+       [s],
+       field(s, ^prev_field) == ^prev_cursor and field(s, ^field) < ^cursor
+     )}
+  end
+
+  # Assume asc sort if not specified
+  defp build_comparison_query({field, cursor}, {{prev_field, prev_cursor}, query}) do
+    build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query})
+  end
+
+  defp build_comparison_query({{:desc, field}, cursor}, query) do
+    {{field, cursor}, or_where(query, [s], field(s, ^field) < ^cursor)}
+  end
+
+  defp build_comparison_query({{:asc, field}, cursor}, query) do
+    {{field, cursor}, or_where(query, [s], field(s, ^field) > ^cursor)}
+  end
+
+  defp build_comparison_query({field, cursor}, query) do
+    build_comparison_query({{:asc, field}, cursor}, query)
   end
 end
