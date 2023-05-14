@@ -18,8 +18,27 @@ defmodule Traveller do
 
         start_after =
           Keyword.get_lazy(opts, :start_after, fn ->
-            # Make this smarter eventually
-            0
+            {direction, first_field} =
+              case cursor do
+                [{direction, field} | _] -> {direction, field}
+                [field | _] -> {:asc, field}
+                {direction, field} -> {direction, field}
+                field -> {:asc, field}
+              end
+
+            type = schema.__schema__(:type, first_field)
+
+            case {direction, type} do
+              {:asc, type} when type in [:id, :integer] ->
+                0
+
+              {:asc, :string} ->
+                ""
+
+              {:desc, _} ->
+                # We do not know what the upper bound should be, so raise
+                raise "You must provide a start_after value for a desc ordering for #{first_field}"
+            end
           end)
 
         next_cursor =
