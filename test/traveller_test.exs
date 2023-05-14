@@ -160,7 +160,7 @@ defmodule TravellerTest do
           Person,
           mode: :offset,
           chunk_size: 2,
-          sort_key: :first_name
+          order_by: :first_name
         )
 
       assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne], [severus_snape]]
@@ -175,18 +175,18 @@ defmodule TravellerTest do
           Person,
           mode: :offset,
           initial_offset: 2,
-          sort_key: :first_name
+          order_by: :first_name
         )
 
       assert Enum.to_list(stream) == [[severus_snape]]
     end
 
-    test "sort_key is configurable", %{
+    test "order_by is configurable", %{
       albus_dumbledore: albus_dumbledore,
       bruce_wayne: bruce_wayne,
       severus_snape: severus_snape
     } do
-      stream = Traveller.start_stream(TestRepo, Person, mode: :offset, sort_key: :last_name)
+      stream = Traveller.start_stream(TestRepo, Person, mode: :offset, order_by: :last_name)
       assert Enum.to_list(stream) == [[albus_dumbledore, severus_snape, bruce_wayne]]
     end
 
@@ -196,7 +196,7 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.start_stream(TestRepo, Person, mode: :offset, sort_key: {:desc, :last_name})
+        Traveller.start_stream(TestRepo, Person, mode: :offset, order_by: {:desc, :last_name})
 
       assert Enum.to_list(stream) == [[bruce_wayne, severus_snape, albus_dumbledore]]
     end

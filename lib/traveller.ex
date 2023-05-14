@@ -11,7 +11,7 @@ defmodule Traveller do
       if mode == :offset do
         Map.merge(base_opts, %{
           offset: Keyword.get(opts, :initial_offset, 0),
-          sort_key: Keyword.get(opts, :sort_key, :id)
+          order_by: Keyword.get(opts, :order_by, :id)
         })
       else
         cursor = Keyword.get(opts, :cursor, :id)
@@ -148,9 +148,9 @@ defmodule Traveller do
     end
   end
 
-  defp iterate(params = %{mode: :offset, sort_key: sort_key}) when is_atom(sort_key) do
+  defp iterate(params = %{mode: :offset, order_by: order_by}) when is_atom(order_by) do
     params
-    |> Map.update!(:sort_key, &{:asc, &1})
+    |> Map.update!(:order_by, &{:asc, &1})
     |> iterate
   end
 
@@ -161,11 +161,11 @@ defmodule Traveller do
            schema: schema,
            offset: offset,
            mode: :offset,
-           sort_key: {direction, sort_key}
+           order_by: {direction, order_by}
          }
        ) do
     schema
-    |> order_by([{^direction, ^sort_key}])
+    |> order_by([{^direction, ^order_by}])
     |> limit(^chunk_size)
     |> offset(^offset)
     |> repo.all()
