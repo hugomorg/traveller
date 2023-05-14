@@ -102,7 +102,6 @@ defmodule TravellerTest do
           TestRepo,
           Person,
           cursor: [desc: :last_name, asc: :first_name],
-          start_after: ["Z", "Z"],
           next_cursor: fn results ->
             last = List.last(results)
             [last.first_name, last.last_name]
@@ -123,23 +122,25 @@ defmodule TravellerTest do
         Traveller.start_stream(
           TestRepo,
           Person,
-          cursor: {:desc, :first_name},
-          start_after: "z"
+          cursor: {:desc, :first_name}
         )
 
       assert Enum.to_list(stream) == [[severus_snape, bruce_wayne, albus_dumbledore]]
     end
 
-    test "raises if desc ordering and start_after not set" do
-      assert_raise RuntimeError,
-                   "You must provide a start_after value for a desc ordering for field first_name",
-                   fn ->
-                     Traveller.start_stream(
-                       TestRepo,
-                       Person,
-                       cursor: {:desc, :first_name}
-                     )
-                   end
+    test "if desc ordering not set uses highest value", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          cursor: {:desc, :first_name}
+        )
+
+      assert Enum.to_list(stream) == [[severus_snape, bruce_wayne, albus_dumbledore]]
     end
   end
 

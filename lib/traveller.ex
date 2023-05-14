@@ -16,17 +16,30 @@ defmodule Traveller do
       else
         cursor = Keyword.get(opts, :cursor, :id)
 
-        start_after =
-          Keyword.get_lazy(opts, :start_after, fn ->
-            {direction, cursor} =
+        ref = make_ref()
+
+        # If no `start_after` is provided then we use a default
+        # from the table. However since the cursor is exclusive we have
+        # to specify the first query as inclusive, as if there was a virtual
+        # cursor greater / lower than the one returned from here
+        {inclusive, start_after} =
+          opts
+          |> Keyword.get_lazy(:start_after, fn ->
+            {direction, field} =
               case cursor do
-                [_ | _] = list -> {:maybe_desc, list}
+                [{direction, field} | _] -> {direction, field}
+                [field | _] -> {:asc, field}
                 {direction, field} -> {direction, field}
                 field -> {:asc, field}
               end
 
-            determine_start_after(schema, {direction, cursor})
+            start_after = determine_start_after(repo, schema, {direction, field})
+            {ref, start_after}
           end)
+          |> case do
+            {^ref, start_after} -> {true, start_after}
+            start_after -> {false, start_after}
+          end
 
         next_cursor =
           Keyword.get_lazy(opts, :next_cursor, fn ->
@@ -52,6 +65,7 @@ defmodule Traveller do
           end)
 
         Map.merge(base_opts, %{
+          inclusive: inclusive,
           cursor: cursor,
           start_after: start_after,
           next_cursor: next_cursor
@@ -80,7 +94,13 @@ defmodule Traveller do
          }
        ) do
     schema
-    |> where([s], field(s, ^cursor) > ^start_after)
+    |> then(fn query ->
+      if params[:inclusive] do
+        where(query, [s], field(s, ^cursor) >= ^start_after)
+      else
+        where(query, [s], field(s, ^cursor) > ^start_after)
+      end
+    end)
     |> order_by(asc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
@@ -89,7 +109,7 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{params | start_after: next_cursor.(results)}}
+        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
     end
   end
 
@@ -105,7 +125,13 @@ defmodule Traveller do
          }
        ) do
     schema
-    |> where([s], field(s, ^cursor) < ^start_after)
+    |> then(fn query ->
+      if params[:inclusive] do
+        where(query, [s], field(s, ^cursor) <= ^start_after)
+      else
+        where(query, [s], field(s, ^cursor) < ^start_after)
+      end
+    end)
     |> order_by(desc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
@@ -114,7 +140,7 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{params | start_after: next_cursor.(results)}}
+        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
     end
   end
 
@@ -132,8 +158,8 @@ defmodule Traveller do
        when is_list(cursor) do
     {_, query} =
       cursor
-      |> Enum.zip(start_after)
-      |> Enum.reduce(schema, &build_comparison_query/2)
+      |> Enum.zip(List.wrap(start_after))
+      |> Enum.reduce(schema, &build_comparison_query(&1, &2, params[:inclusive]))
 
     query
     |> order_by(^cursor)
@@ -144,7 +170,7 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{params | start_after: next_cursor.(results)}}
+        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
     end
   end
 
@@ -187,7 +213,7 @@ defmodule Traveller do
   end
 
   # If multi-field cursor, and first n fields are equal, keep comparing
-  defp build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query}) do
+  defp build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query}, _) do
     {{field, cursor},
      or_where(
        query,
@@ -196,7 +222,7 @@ defmodule Traveller do
      )}
   end
 
-  defp build_comparison_query({{:desc, field}, cursor}, {{prev_field, prev_cursor}, query}) do
+  defp build_comparison_query({{:desc, field}, cursor}, {{prev_field, prev_cursor}, query}, _) do
     {{field, cursor},
      or_where(
        query,
@@ -206,55 +232,39 @@ defmodule Traveller do
   end
 
   # Assume asc sort if not specified
-  defp build_comparison_query({field, cursor}, {{prev_field, prev_cursor}, query}) do
-    build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query})
+  defp build_comparison_query({field, cursor}, {{prev_field, prev_cursor}, query}, inclusive) do
+    build_comparison_query({{:asc, field}, cursor}, {{prev_field, prev_cursor}, query}, inclusive)
   end
 
-  defp build_comparison_query({{:desc, field}, cursor}, query) do
+  defp build_comparison_query({{:desc, field}, cursor}, query, true) do
+    {{field, cursor}, or_where(query, [s], field(s, ^field) <= ^cursor)}
+  end
+
+  defp build_comparison_query({{:desc, field}, cursor}, query, _) do
     {{field, cursor}, or_where(query, [s], field(s, ^field) < ^cursor)}
   end
 
-  defp build_comparison_query({{:asc, field}, cursor}, query) do
+  defp build_comparison_query({{:asc, field}, cursor}, query, true) do
+    {{field, cursor}, or_where(query, [s], field(s, ^field) >= ^cursor)}
+  end
+
+  defp build_comparison_query({{:asc, field}, cursor}, query, _) do
     {{field, cursor}, or_where(query, [s], field(s, ^field) > ^cursor)}
   end
 
-  defp build_comparison_query({field, cursor}, query) do
-    build_comparison_query({{:asc, field}, cursor}, query)
+  defp build_comparison_query({field, cursor}, query, inclusive) do
+    build_comparison_query({{:asc, field}, cursor}, query, inclusive)
   end
 
-  defp determine_start_after(schema, {:asc, field}) do
-    case schema.__schema__(:type, field) do
-      type when type in [:id, :integer, :float, :decimal] ->
-        0
-
-      :string ->
-        ""
-
-      type ->
-        raise "We can't determine an appropriate start value for type #{type} for field #{field}"
-    end
+  defp determine_start_after(repo, schema, {:asc, cursor}) do
+    schema |> select([row], min(field(row, ^cursor))) |> repo.one
   end
 
-  defp determine_start_after(schema, {:maybe_desc, list}) when is_list(list) do
-    Enum.map(list, fn maybe_field ->
-      parsed_field =
-        case maybe_field do
-          {:desc, field} ->
-            # We do not know what the upper bound should be, so raise
-            raise "You must provide a start_after value for a desc ordering for field #{field}"
-
-          {:asc, field} ->
-            field
-
-          field ->
-            field
-        end
-
-      determine_start_after(schema, {:asc, parsed_field})
-    end)
+  defp determine_start_after(repo, schema, {:desc, cursor}) do
+    schema |> select([row], max(field(row, ^cursor))) |> repo.one
   end
 
-  defp determine_start_after(_schema, {:desc, field}) do
-    raise "You must provide a start_after value for a desc ordering for field #{field}"
+  defp drop_inclusive(params) do
+    Map.delete(params, :inclusive)
   end
 end
