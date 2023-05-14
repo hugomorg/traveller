@@ -1,9 +1,7 @@
 defmodule Traveller do
   import Ecto.Query
 
-  def run(opts) do
-    schema = Keyword.fetch!(opts, :schema)
-    repo = Keyword.fetch!(opts, :repo)
+  def start_stream(repo, schema, opts \\ []) do
     chunk_size = Keyword.get(opts, :chunk_size, 100)
     mode = Keyword.get(opts, :mode, :cursor)
 

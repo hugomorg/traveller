@@ -21,7 +21,7 @@ defmodule TravellerTest do
 
   describe "cursor mode" do
     test "default cursor is id", %{sorted_by_id: sorted_by_id} do
-      stream = Traveller.run(repo: TestRepo, schema: Person)
+      stream = Traveller.start_stream(TestRepo, Person)
       assert Enum.to_list(stream) == [sorted_by_id]
     end
 
@@ -31,9 +31,9 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           chunk_size: 1,
           cursor: :first_name,
           start_after: ""
@@ -47,9 +47,9 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           start_after: bruce_wayne.first_name,
           cursor: :first_name
         )
@@ -62,8 +62,7 @@ defmodule TravellerTest do
       bruce_wayne: bruce_wayne,
       severus_snape: severus_snape
     } do
-      stream =
-        Traveller.run(repo: TestRepo, schema: Person, cursor: :first_name, start_after: "A")
+      stream = Traveller.start_stream(TestRepo, Person, cursor: :first_name, start_after: "A")
 
       assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne, severus_snape]]
     end
@@ -76,9 +75,9 @@ defmodule TravellerTest do
       albus_bob = TestRepo.insert!(%Person{first_name: "Albus", last_name: "Bob"})
 
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           cursor: [:first_name, :last_name],
           start_after: [albus_bob.first_name, albus_bob.last_name],
           next_cursor: fn results ->
@@ -100,9 +99,9 @@ defmodule TravellerTest do
       lisa_wayne = TestRepo.insert!(%Person{first_name: "Lisa", last_name: "Wayne"})
 
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           cursor: [desc: :last_name, asc: :first_name],
           start_after: ["Z", "Z"],
           next_cursor: fn results ->
@@ -122,9 +121,9 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           cursor: {:desc, :first_name},
           start_after: "z"
         )
@@ -135,7 +134,7 @@ defmodule TravellerTest do
 
   describe "offset mode" do
     test "default fetches 100", %{sorted_by_id: sorted_by_id} do
-      stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset)
+      stream = Traveller.start_stream(TestRepo, Person, mode: :offset)
       assert Enum.to_list(stream) == [sorted_by_id]
     end
 
@@ -145,9 +144,9 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           mode: :offset,
           chunk_size: 2,
           sort_key: :first_name
@@ -160,9 +159,9 @@ defmodule TravellerTest do
       severus_snape: severus_snape
     } do
       stream =
-        Traveller.run(
-          repo: TestRepo,
-          schema: Person,
+        Traveller.start_stream(
+          TestRepo,
+          Person,
           mode: :offset,
           initial_offset: 2,
           sort_key: :first_name
@@ -176,7 +175,7 @@ defmodule TravellerTest do
       bruce_wayne: bruce_wayne,
       severus_snape: severus_snape
     } do
-      stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset, sort_key: :last_name)
+      stream = Traveller.start_stream(TestRepo, Person, mode: :offset, sort_key: :last_name)
       assert Enum.to_list(stream) == [[albus_dumbledore, severus_snape, bruce_wayne]]
     end
   end
