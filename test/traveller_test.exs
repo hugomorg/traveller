@@ -90,6 +90,22 @@ defmodule TravellerTest do
 
       assert Enum.take(stream, 4) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
+
+    test "cursor can be specified in desc order", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          cursor: {:desc, :first_name},
+          start_after: "z"
+        )
+
+      assert Enum.to_list(stream) == [[severus_snape, bruce_wayne, albus_dumbledore]]
+    end
   end
 
   describe "offset mode" do

@@ -26,6 +26,12 @@ defmodule Traveller do
 
         next_cursor =
           Keyword.get(opts, :next_cursor, fn results ->
+            cursor =
+              case cursor do
+                {_, cursor} -> cursor
+                cursor -> cursor
+              end
+
             results |> List.last() |> Map.get(cursor)
           end)
 
@@ -39,21 +45,52 @@ defmodule Traveller do
     Stream.unfold(opts, &iterate/1)
   end
 
+  defp iterate(params = %{cursor: cursor})
+       when is_atom(cursor) do
+    params
+    |> Map.update!(:cursor, &{:asc, &1})
+    |> iterate
+  end
+
   defp iterate(
          params = %{
            chunk_size: chunk_size,
-           cursor: cursor,
+           cursor: {:asc, cursor},
            next_cursor: next_cursor,
            repo: repo,
            schema: schema,
            start_after: start_after,
            mode: :cursor
          }
-       )
-       when is_atom(cursor) do
+       ) do
     schema
     |> where([s], field(s, ^cursor) > ^start_after)
     |> order_by(asc: ^cursor)
+    |> limit(^chunk_size)
+    |> repo.all()
+    |> case do
+      [] ->
+        nil
+
+      results ->
+        {results, %{params | start_after: next_cursor.(results)}}
+    end
+  end
+
+  defp iterate(
+         params = %{
+           chunk_size: chunk_size,
+           cursor: {:desc, cursor},
+           next_cursor: next_cursor,
+           repo: repo,
+           schema: schema,
+           start_after: start_after,
+           mode: :cursor
+         }
+       ) do
+    schema
+    |> where([s], field(s, ^cursor) < ^start_after)
+    |> order_by(desc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
     |> case do
