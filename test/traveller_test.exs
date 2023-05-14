@@ -65,7 +65,7 @@ defmodule TravellerTest do
       stream =
         Traveller.run(repo: TestRepo, schema: Person, cursor: :first_name, start_after: "A")
 
-      assert Enum.take(stream, 1) == [[albus_dumbledore, bruce_wayne, severus_snape]]
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne, severus_snape]]
     end
 
     test "cursor can be a list of fields", %{
@@ -88,7 +88,7 @@ defmodule TravellerTest do
           chunk_size: 1
         )
 
-      assert Enum.take(stream, 4) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
+      assert Enum.to_list(stream) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
 
     test "cursor can be a list of fields - any sort directions", %{
@@ -136,7 +136,7 @@ defmodule TravellerTest do
   describe "offset mode" do
     test "default fetches 100", %{sorted_by_id: sorted_by_id} do
       stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset)
-      assert Enum.take(stream, 1) == [sorted_by_id]
+      assert Enum.to_list(stream) == [sorted_by_id]
     end
 
     test "chunk size is configurable", %{
@@ -168,7 +168,7 @@ defmodule TravellerTest do
           sort_key: :first_name
         )
 
-      assert Enum.take(stream, 1) == [[severus_snape]]
+      assert Enum.to_list(stream) == [[severus_snape]]
     end
 
     test "sort_key is configurable", %{
