@@ -189,5 +189,16 @@ defmodule TravellerTest do
       stream = Traveller.start_stream(TestRepo, Person, mode: :offset, sort_key: :last_name)
       assert Enum.to_list(stream) == [[albus_dumbledore, severus_snape, bruce_wayne]]
     end
+
+    test "with desc order", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(TestRepo, Person, mode: :offset, sort_key: {:desc, :last_name})
+
+      assert Enum.to_list(stream) == [[bruce_wayne, severus_snape, albus_dumbledore]]
+    end
   end
 end

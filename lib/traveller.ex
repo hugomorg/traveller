@@ -148,6 +148,12 @@ defmodule Traveller do
     end
   end
 
+  defp iterate(params = %{mode: :offset, sort_key: sort_key}) when is_atom(sort_key) do
+    params
+    |> Map.update!(:sort_key, &{:asc, &1})
+    |> iterate
+  end
+
   defp iterate(
          params = %{
            chunk_size: chunk_size,
@@ -155,11 +161,11 @@ defmodule Traveller do
            schema: schema,
            offset: offset,
            mode: :offset,
-           sort_key: sort_key
+           sort_key: {direction, sort_key}
          }
        ) do
     schema
-    |> order_by(asc: ^sort_key)
+    |> order_by([{^direction, ^sort_key}])
     |> limit(^chunk_size)
     |> offset(^offset)
     |> repo.all()
