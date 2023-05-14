@@ -78,15 +78,15 @@ defmodule TravellerTest do
           TestRepo,
           Person,
           cursor: [:first_name, :last_name],
-          start_after: [albus_bob.first_name, albus_bob.last_name],
-          next_cursor: fn results ->
-            last = List.last(results)
-            [last.first_name, last.last_name]
-          end,
           chunk_size: 1
         )
 
-      assert Enum.to_list(stream) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
+      assert Enum.to_list(stream) == [
+               [albus_bob],
+               [albus_dumbledore],
+               [bruce_wayne],
+               [severus_snape]
+             ]
     end
 
     test "cursor can be a list of fields - any sort directions", %{
@@ -132,7 +132,7 @@ defmodule TravellerTest do
 
     test "raises if desc ordering and start_after not set" do
       assert_raise RuntimeError,
-                   "You must provide a start_after value for a desc ordering for first_name",
+                   "You must provide a start_after value for a desc ordering for field first_name",
                    fn ->
                      Traveller.start_stream(
                        TestRepo,

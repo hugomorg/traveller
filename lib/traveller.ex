@@ -18,38 +18,37 @@ defmodule Traveller do
 
         start_after =
           Keyword.get_lazy(opts, :start_after, fn ->
-            {direction, first_field} =
+            {direction, cursor} =
               case cursor do
-                [{direction, field} | _] -> {direction, field}
-                [field | _] -> {:asc, field}
+                [_ | _] = list -> {:maybe_desc, list}
                 {direction, field} -> {direction, field}
                 field -> {:asc, field}
               end
 
-            type = schema.__schema__(:type, first_field)
-
-            case {direction, type} do
-              {:asc, type} when type in [:id, :integer] ->
-                0
-
-              {:asc, :string} ->
-                ""
-
-              {:desc, _} ->
-                # We do not know what the upper bound should be, so raise
-                raise "You must provide a start_after value for a desc ordering for #{first_field}"
-            end
+            determine_start_after(schema, {direction, cursor})
           end)
 
         next_cursor =
-          Keyword.get(opts, :next_cursor, fn results ->
-            cursor =
+          Keyword.get_lazy(opts, :next_cursor, fn ->
+            next_cursor_fun =
               case cursor do
-                {_, cursor} -> cursor
-                cursor -> cursor
+                cursor when is_list(cursor) ->
+                  fn last ->
+                    Enum.map(cursor, &Map.fetch!(last, &1))
+                  end
+
+                {_, cursor} ->
+                  &Map.fetch!(&1, cursor)
+
+                cursor ->
+                  &Map.fetch!(&1, cursor)
               end
 
-            results |> List.last() |> Map.get(cursor)
+            fn results ->
+              results
+              |> List.last()
+              |> next_cursor_fun.()
+            end
           end)
 
         Map.merge(base_opts, %{
@@ -131,10 +130,6 @@ defmodule Traveller do
          }
        )
        when is_list(cursor) do
-    unless length(start_after) == length(cursor) do
-      raise "Cursor length must match cursor fields"
-    end
-
     {_, query} =
       cursor
       |> Enum.zip(start_after)
@@ -211,5 +206,41 @@ defmodule Traveller do
 
   defp build_comparison_query({field, cursor}, query) do
     build_comparison_query({{:asc, field}, cursor}, query)
+  end
+
+  defp determine_start_after(schema, {:asc, field}) do
+    case schema.__schema__(:type, field) do
+      type when type in [:id, :integer, :float, :decimal] ->
+        0
+
+      :string ->
+        ""
+
+      type ->
+        raise "We can't determine an appropriate start value for type #{type} for field #{field}"
+    end
+  end
+
+  defp determine_start_after(schema, {:maybe_desc, list}) when is_list(list) do
+    Enum.map(list, fn maybe_field ->
+      parsed_field =
+        case maybe_field do
+          {:desc, field} ->
+            # We do not know what the upper bound should be, so raise
+            raise "You must provide a start_after value for a desc ordering for field #{field}"
+
+          {:asc, field} ->
+            field
+
+          field ->
+            field
+        end
+
+      determine_start_after(schema, {:asc, parsed_field})
+    end)
+  end
+
+  defp determine_start_after(_schema, {:desc, field}) do
+    raise "You must provide a start_after value for a desc ordering for field #{field}"
   end
 end
