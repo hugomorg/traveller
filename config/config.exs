@@ -1,5 +1,7 @@
 import Config
 
+config :logger, level: :info
+
 config :traveller, ecto_repos: [Traveller.TestRepo]
 
 config :traveller, Traveller.TestRepo,
