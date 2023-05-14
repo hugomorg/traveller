@@ -168,8 +168,16 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{params | offset: offset + chunk_size}}
+        if length(results) == chunk_size do
+          {results, %{params | offset: offset + chunk_size}}
+        else
+          {results, :done}
+        end
     end
+  end
+
+  defp iterate(:done) do
+    nil
   end
 
   # If multi-field cursor, and first n fields are equal, keep comparing
