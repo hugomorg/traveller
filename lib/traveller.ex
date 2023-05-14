@@ -18,6 +18,8 @@ defmodule Traveller do
 
         ref = make_ref()
 
+        stop_before = Keyword.get(opts, :stop_before)
+
         # If no `start_after` is provided then we use a default
         # from the table. However since the cursor is exclusive we have
         # to specify the first query as inclusive, as if there was a virtual
@@ -65,10 +67,11 @@ defmodule Traveller do
           end)
 
         Map.merge(base_opts, %{
-          inclusive: inclusive,
           cursor: cursor,
+          inclusive: inclusive,
+          next_cursor: next_cursor,
           start_after: start_after,
-          next_cursor: next_cursor
+          stop_before: stop_before
         })
       end
 
@@ -101,6 +104,13 @@ defmodule Traveller do
         where(query, [s], field(s, ^cursor) > ^start_after)
       end
     end)
+    |> then(fn query ->
+      if stop_before = params[:stop_before] do
+        where(query, [s], field(s, ^cursor) < ^stop_before)
+      else
+        query
+      end
+    end)
     |> order_by(asc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
@@ -130,6 +140,13 @@ defmodule Traveller do
         where(query, [s], field(s, ^cursor) <= ^start_after)
       else
         where(query, [s], field(s, ^cursor) < ^start_after)
+      end
+    end)
+    |> then(fn query ->
+      if stop_before = params[:stop_before] do
+        where(query, [s], field(s, ^cursor) > ^stop_before)
+      else
+        query
       end
     end)
     |> order_by(desc: ^cursor)

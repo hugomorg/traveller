@@ -142,6 +142,38 @@ defmodule TravellerTest do
 
       assert Enum.to_list(stream) == [[severus_snape, bruce_wayne, albus_dumbledore]]
     end
+
+    test "stop_before option terminates backfill early - asc", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          cursor: :first_name,
+          stop_before: severus_snape.first_name
+        )
+
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne]]
+    end
+
+    test "stop_before option terminates backfill early - desc", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          cursor: {:desc, :first_name},
+          stop_before: albus_dumbledore.first_name
+        )
+
+      assert Enum.to_list(stream) == [[severus_snape, bruce_wayne]]
+    end
   end
 
   describe "offset mode" do
