@@ -1,6 +1,77 @@
 defmodule Traveller do
+  @moduledoc """
+  Provides a simple way to fetch records from a database table.
+
+  Supports cursor and offset based pagination. Allows for multiple cursor
+  fields and multi-directional ordering.
+
+
+  Simplest use-case:
+  ```
+  Traveller.start_stream(MyRepo, MySchema)
+  ```
+
+  Specify a cursor...
+  ```
+  Traveller.start_stream(MyRepo, MySchema, cursor: :first_name)
+  ```
+
+  ...or many
+  ```
+  Traveller.start_stream(MyRepo, MySchema, cursor: [asc: :first_name, desc: :last_name])
+  ```
+
+  Offset if you prefer:
+  ```
+  Traveller.start_stream(MyRepo, MySchema, mode: :offset)
+  ```
+
+  Start late and finish early:
+  ```
+  Traveller.start_stream(MyRepo, MySchema, start_after: "Albus", stop_before: "Severus")
+  ```
+  """
+
   import Ecto.Query
 
+  @doc """
+  Initiates a stream that walks through a database table.
+
+  Expects a repo, a schema and 0 or more options.
+
+  Assumes the repo passed has already been started.
+
+  Options:
+  - `cursor`: only applies when `mode = :cursor` (default). Defaults to `:id`. Can be an atom
+  corresponding to a field in the schema passed; a tuple with an ordering
+  (either `:asc` or `:desc`) and a field; or a list of fields or `{order, field}`
+  tuples. If no order is specified `:asc` is assumed.
+
+  - `chunk_size`: determines how many records are returned in each batch.
+
+  - `start_after`: a value which is used for the initial cursor. Only
+  works when `mode` is `cursor`. If none is provided then the highest or
+  lowest value in the table is used, based on whether the ordering is descending
+  or ascending respectively. If a list of cursor fields is passed, then
+  the default applies to the first field only.
+
+  - `stop_before`: a value which is used to terminate the record fetch early.
+  Currently only supports a single value, and only works when `mode` is `cursor`.
+
+  - `mode`: provide `:offset` if you want an offset based record fetch.
+
+  - `order_by`: only applies when `mode` is `:offset`. Determines the order
+  that records are returned in. Can be a field or a `{direction, field}`
+  tuple. If no sort direction is specified, `:asc` is assumed.
+
+  - `offset`: only applies when `mode` is `:offset`. This is used for the initial
+  offset. The default is 0.
+
+  - `next_cursor`: default is the values corresponding to the cursor fields
+  from the last record the last record in the result set.
+  You can provide a function which is passed the set of results
+  which can return a value or a list of values used for the next cursor.
+  """
   def start_stream(repo, schema, opts \\ []) do
     chunk_size = Keyword.get(opts, :chunk_size, 100)
     mode = Keyword.get(opts, :mode, :cursor)
