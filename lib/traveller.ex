@@ -49,10 +49,56 @@ defmodule Traveller do
            start_after: start_after,
            mode: :cursor
          }
-       ) do
+       )
+       when is_atom(cursor) do
     schema
     |> where([s], field(s, ^cursor) > ^start_after)
     |> order_by(asc: ^cursor)
+    |> limit(^chunk_size)
+    |> repo.all()
+    |> case do
+      [] ->
+        nil
+
+      results ->
+        {results, %{params | start_after: next_cursor.(results)}}
+    end
+  end
+
+  defp iterate(
+         params = %{
+           chunk_size: chunk_size,
+           cursor: cursor,
+           next_cursor: next_cursor,
+           repo: repo,
+           schema: schema,
+           start_after: start_after,
+           mode: :cursor
+         }
+       )
+       when is_list(cursor) do
+    unless length(start_after) == length(cursor) do
+      raise "Cursor length must match cursor fields"
+    end
+
+    {_, query} =
+      cursor
+      |> Enum.zip(start_after)
+      |> Enum.reduce(schema, fn
+        {field, cursor}, {{prev_field, prev_cursor}, q} ->
+          {{field, cursor},
+           or_where(
+             q,
+             [s],
+             field(s, ^prev_field) == ^prev_cursor and field(s, ^field) > ^cursor
+           )}
+
+        {field, cursor}, q ->
+          {{field, cursor}, or_where(q, [s], field(s, ^field) > ^cursor)}
+      end)
+
+    query
+    |> order_by(^cursor)
     |> limit(^chunk_size)
     |> repo.all()
     |> case do

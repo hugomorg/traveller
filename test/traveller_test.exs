@@ -60,6 +60,30 @@ defmodule TravellerTest do
 
       assert Enum.take(stream, 1) == [[dumbledore, batman, indiana_jones, snape]]
     end
+
+    test "cursor can be a list of fields", %{
+      dumbledore: dumbledore,
+      batman: batman,
+      snape: snape,
+      indiana_jones: indiana_jones
+    } do
+      bob = TestRepo.insert!(%Person{first_name: "Albus", last_name: "Bob"})
+
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          cursor: [:first_name, :last_name],
+          start_after: [bob.first_name, bob.last_name],
+          next_cursor: fn results ->
+            last = List.last(results)
+            [last.first_name, last.last_name]
+          end,
+          chunk_size: 1
+        )
+
+      assert Enum.take(stream, 4) == [[dumbledore], [batman], [indiana_jones], [snape]]
+    end
   end
 
   describe "offset mode" do
@@ -79,8 +103,6 @@ defmodule TravellerTest do
     end
 
     test "initial_offset is configurable", %{
-      snape: snape,
-      dumbledore: dumbledore,
       batman: batman,
       indiana_jones: indiana_jones
     } do
