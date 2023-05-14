@@ -4,77 +4,83 @@ defmodule TravellerTest do
   alias Traveller.TestRepo
 
   setup do
-    dumbledore =
+    albus_dumbledore =
       TestRepo.insert!(%Person{first_name: "Albus", last_name: "Dumbledore", age: 1001})
 
-    snape = TestRepo.insert!(%Person{first_name: "Severus", last_name: "Snape", age: 42})
+    severus_snape = TestRepo.insert!(%Person{first_name: "Severus", last_name: "Snape", age: 42})
 
-    indiana_jones = TestRepo.insert!(%Person{first_name: "Indiana", last_name: "Jones", age: 59})
-
-    batman = TestRepo.insert!(%Person{first_name: "Bruce", last_name: "Wayne", age: 37})
+    bruce_wayne = TestRepo.insert!(%Person{first_name: "Bruce", last_name: "Wayne", age: 37})
 
     %{
-      dumbledore: dumbledore,
-      snape: snape,
-      indiana_jones: indiana_jones,
-      batman: batman,
-      all: [dumbledore, snape, indiana_jones, batman]
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape,
+      sorted_by_id: [albus_dumbledore, severus_snape, bruce_wayne]
     }
   end
 
   describe "cursor mode" do
-    test "default cursor is id", %{all: all} do
+    test "default cursor is id", %{sorted_by_id: sorted_by_id} do
       stream = Traveller.run(repo: TestRepo, schema: Person)
-      assert Enum.take(stream, 1) == [all]
+      assert Enum.to_list(stream) == [sorted_by_id]
     end
 
     test "chunk size is configurable", %{
-      dumbledore: dumbledore,
-      snape: snape,
-      indiana_jones: indiana_jones,
-      batman: batman
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
-      stream = Traveller.run(repo: TestRepo, schema: Person, chunk_size: 1)
-      assert Enum.take(stream, 1) == [[dumbledore]]
-      assert Enum.take(stream, 2) == [[dumbledore], [snape]]
-      assert Enum.take(stream, 3) == [[dumbledore], [snape], [indiana_jones]]
-      assert Enum.take(stream, 4) == [[dumbledore], [snape], [indiana_jones], [batman]]
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          chunk_size: 1,
+          cursor: :first_name,
+          start_after: ""
+        )
+
+      assert Enum.to_list(stream) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
 
     test "start_after is configurable", %{
-      indiana_jones: indiana_jones,
-      batman: batman
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
-      stream = Traveller.run(repo: TestRepo, schema: Person, start_after: indiana_jones.id)
-      assert Enum.take(stream, 1) == [[batman]]
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          start_after: bruce_wayne.first_name,
+          cursor: :first_name
+        )
+
+      assert Enum.to_list(stream) == [[severus_snape]]
     end
 
     test "cursor field is configurable", %{
-      indiana_jones: indiana_jones,
-      dumbledore: dumbledore,
-      snape: snape,
-      batman: batman
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
       stream =
         Traveller.run(repo: TestRepo, schema: Person, cursor: :first_name, start_after: "A")
 
-      assert Enum.take(stream, 1) == [[dumbledore, batman, indiana_jones, snape]]
+      assert Enum.take(stream, 1) == [[albus_dumbledore, bruce_wayne, severus_snape]]
     end
 
     test "cursor can be a list of fields", %{
-      dumbledore: dumbledore,
-      batman: batman,
-      snape: snape,
-      indiana_jones: indiana_jones
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
-      bob = TestRepo.insert!(%Person{first_name: "Albus", last_name: "Bob"})
+      albus_bob = TestRepo.insert!(%Person{first_name: "Albus", last_name: "Bob"})
 
       stream =
         Traveller.run(
           repo: TestRepo,
           schema: Person,
           cursor: [:first_name, :last_name],
-          start_after: [bob.first_name, bob.last_name],
+          start_after: [albus_bob.first_name, albus_bob.last_name],
           next_cursor: fn results ->
             last = List.last(results)
             [last.first_name, last.last_name]
@@ -82,42 +88,55 @@ defmodule TravellerTest do
           chunk_size: 1
         )
 
-      assert Enum.take(stream, 4) == [[dumbledore], [batman], [indiana_jones], [snape]]
+      assert Enum.take(stream, 4) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
   end
 
   describe "offset mode" do
-    test "default fetches 100", %{all: all} do
+    test "default fetches 100", %{sorted_by_id: sorted_by_id} do
       stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset)
-      assert Enum.take(stream, 1) == [all]
+      assert Enum.take(stream, 1) == [sorted_by_id]
     end
 
     test "chunk size is configurable", %{
-      snape: snape,
-      dumbledore: dumbledore,
-      batman: batman,
-      indiana_jones: indiana_jones
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
-      stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset, chunk_size: 2)
-      assert Enum.take(stream, 2) == [[dumbledore, snape], [indiana_jones, batman]]
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          mode: :offset,
+          chunk_size: 2,
+          sort_key: :first_name
+        )
+
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne], [severus_snape]]
     end
 
     test "initial_offset is configurable", %{
-      batman: batman,
-      indiana_jones: indiana_jones
+      severus_snape: severus_snape
     } do
-      stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset, initial_offset: 2)
-      assert Enum.take(stream, 1) == [[indiana_jones, batman]]
+      stream =
+        Traveller.run(
+          repo: TestRepo,
+          schema: Person,
+          mode: :offset,
+          initial_offset: 2,
+          sort_key: :first_name
+        )
+
+      assert Enum.take(stream, 1) == [[severus_snape]]
     end
 
     test "sort_key is configurable", %{
-      snape: snape,
-      dumbledore: dumbledore,
-      batman: batman,
-      indiana_jones: indiana_jones
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
     } do
       stream = Traveller.run(repo: TestRepo, schema: Person, mode: :offset, sort_key: :last_name)
-      assert Enum.take(stream, 1) == [[dumbledore, indiana_jones, snape, batman]]
+      assert Enum.to_list(stream) == [[albus_dumbledore, severus_snape, bruce_wayne]]
     end
   end
 end
