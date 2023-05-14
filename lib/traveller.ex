@@ -42,10 +42,12 @@ defmodule Traveller do
   Assumes the repo passed has already been started.
 
   Options:
-  - `cursor`: only applies when `mode = :cursor` (default). Defaults to `:id`. Can be an atom
-  corresponding to a field in the schema passed; a tuple with an ordering
-  (either `:asc` or `:desc`) and a field; or a list of fields or `{order, field}`
-  tuples. If no order is specified `:asc` is assumed.
+  - `cursor`: only applies when `mode = :cursor` (default). Defaults to
+  primary key or `:id`.
+  Can be an atom corresponding to a field in the schema passed;
+  a tuple with an ordering (either `:asc` or `:desc`) and a field;
+  or a list of fields or `{order, field}` tuples.
+  If no order is specified `:asc` is assumed.
 
   - `chunk_size`: determines how many records are returned in each batch.
 
@@ -85,7 +87,15 @@ defmodule Traveller do
           order_by: Keyword.get(opts, :order_by, :id)
         })
       else
-        cursor = Keyword.get(opts, :cursor, :id)
+        cursor =
+          Keyword.get_lazy(opts, :cursor, fn ->
+            pk = schema.__schema__(:primary_key)
+
+            case pk do
+              [field | _] -> field
+              [] -> :id
+            end
+          end)
 
         ref = make_ref()
 

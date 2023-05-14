@@ -1,5 +1,6 @@
 defmodule TravellerTest do
   use Traveller.RepoCase
+  alias Traveller.Car
   alias Traveller.Person
   alias Traveller.TestRepo
 
@@ -20,9 +21,16 @@ defmodule TravellerTest do
   end
 
   describe "cursor mode" do
-    test "default cursor is id", %{sorted_by_id: sorted_by_id} do
+    test "default cursor is primary key", %{sorted_by_id: sorted_by_id} do
       stream = Traveller.start_stream(TestRepo, Person)
       assert Enum.to_list(stream) == [sorted_by_id]
+    end
+
+    test "if no primary key default cursor is id" do
+      car_1 = TestRepo.insert!(%Car{company: "Tesla", model: "something", id: 1})
+      car_2 = TestRepo.insert!(%Car{company: "Tesla", model: "something2", id: 2})
+      stream = Traveller.start_stream(TestRepo, Car)
+      assert Enum.to_list(stream) == [[car_1, car_2]]
     end
 
     test "chunk size is configurable", %{
