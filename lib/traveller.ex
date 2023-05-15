@@ -6,29 +6,49 @@ defmodule Traveller do
   fields and multi-directional ordering.
 
 
-  Simplest use-case:
+  Simplest use-case (assuming a `User` schema):
   ```
-  Traveller.start_stream(MyRepo, MySchema)
+  Repo
+  |> Traveller.start_stream(User)
+  |> Enum.each(fn batch ->
+    # do something
+  end)
   ```
 
   Specify a cursor...
   ```
-  Traveller.start_stream(MyRepo, MySchema, cursor: :first_name)
+  Repo
+  |> Traveller.start_stream(User, cursor: :first_name)
+  |> Enum.each(fn batch ->
+    # do something
+  end)
   ```
 
   ...or many
   ```
-  Traveller.start_stream(MyRepo, MySchema, cursor: [asc: :first_name, desc: :last_name])
+  Repo
+  |> Traveller.start_stream(User, cursor: [desc: :first_name, desc: :last_name, asc: :id])
+  |> Enum.each(fn batch ->
+    # do something
+  end)
   ```
 
   Offset if you prefer:
   ```
-  Traveller.start_stream(MyRepo, MySchema, mode: :offset)
+  Repo
+  |> Traveller.start_stream(User, mode: :offset)
+  |> Enum.each(fn batch ->
+    # do something
+  end)
   ```
 
   Start late and finish early:
   ```
-  Traveller.start_stream(MyRepo, MySchema, start_after: "Albus", stop_before: "Severus")
+  Repo
+  |> Traveller.start_stream(User, start_after: "Albus", stop_before: "Severus", cursor: :first_name)
+  |> Enum.each(fn batch ->
+    # do something
+  end)
   ```
   """
 
