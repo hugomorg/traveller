@@ -1,4 +1,6 @@
 defmodule Traveller do
+  require Logger
+
   @moduledoc """
   Provides a simple way to fetch records from a database table.
 
@@ -146,19 +148,7 @@ defmodule Traveller do
 
         next_cursor =
           Keyword.get_lazy(opts, :next_cursor, fn ->
-            next_cursor_fun =
-              case cursor do
-                cursor when is_list(cursor) ->
-                  fn last ->
-                    Enum.map(cursor, &Map.fetch!(last, &1))
-                  end
-
-                {_, cursor} ->
-                  &Map.fetch!(&1, cursor)
-
-                cursor ->
-                  &Map.fetch!(&1, cursor)
-              end
+            next_cursor_fun = generate_next_cursor_fun(cursor)
 
             fn results ->
               results
@@ -384,5 +374,21 @@ defmodule Traveller do
 
   defp drop_inclusive(params) do
     Map.delete(params, :inclusive)
+  end
+
+  defp generate_next_cursor_fun(cursor) when is_list(cursor) do
+    fn last ->
+      Enum.map(cursor, fn cursor_field ->
+        generate_next_cursor_fun(cursor_field).(last)
+      end)
+    end
+  end
+
+  defp generate_next_cursor_fun({_, cursor}) do
+    &Map.fetch!(&1, cursor)
+  end
+
+  defp generate_next_cursor_fun(cursor) do
+    &Map.fetch!(&1, cursor)
   end
 end

@@ -49,6 +49,54 @@ defmodule TravellerTest do
       assert Enum.to_list(stream) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
     end
 
+    test "chunk size is configurable - direction cursor", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          chunk_size: 2,
+          cursor: {:desc, :first_name}
+        )
+
+      assert Enum.to_list(stream) == [[severus_snape, bruce_wayne], [albus_dumbledore]]
+    end
+
+    test "chunk size is configurable - cursor list", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          chunk_size: 2,
+          cursor: [:first_name, :id]
+        )
+
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne], [severus_snape]]
+    end
+
+    test "chunk size is configurable - cursor list with directions", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream =
+        Traveller.start_stream(
+          TestRepo,
+          Person,
+          chunk_size: 2,
+          cursor: [asc: :first_name, asc: :id]
+        )
+
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne], [severus_snape]]
+    end
+
     test "start_after is configurable", %{
       bruce_wayne: bruce_wayne,
       severus_snape: severus_snape
