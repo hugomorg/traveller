@@ -210,7 +210,11 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        if length(results) == chunk_size do
+          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        else
+          {results, :done}
+        end
     end
   end
 
@@ -248,7 +252,11 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        if length(results) == chunk_size do
+          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        else
+          {results, :done}
+        end
     end
   end
 
@@ -278,7 +286,11 @@ defmodule Traveller do
         nil
 
       results ->
-        {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        if length(results) == chunk_size do
+          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+        else
+          {results, :done}
+        end
     end
   end
 
