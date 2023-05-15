@@ -1,6 +1,46 @@
 # Traveller
 
-**TODO: Add description**
+Traveller provides a easy, stream-based traversal of a database table. This library is well-suited for backfills, migrations etc. It can handle massive tables because of the lazy enumeration.
+
+The most basic use case is:
+
+```elixir
+MyRepo
+|> Traveller.start_stream(MySchema)
+|> Enum.map(fn record_batch ->
+  # your logic here
+ end)
+```
+
+You can also handle more advanced use cases. Let's say you have a `users` table and you want to iterate over all users, sorting by first name in reverse alphabetical order, then last name in reverse order, then id. But you want to start after "Z" and stop before "A". Also, you want a small batch size. You can do something like:
+
+```elixir
+MyRepo
+|> Traveller.start_stream(
+  MySchema,
+  start_after: "Z",
+  stop_before: "A",
+  cursor: [desc: :first_name, desc: :last_name, asc: :id],
+  chunk_size: 50
+)
+|> Enum.map(fn record_batch ->
+  # your logic here
+ end)
+```
+
+Assuming you have the correct indexes cursor-based iteration is normally much more efficient. But if you want to do an offset based traversal, for whatever reason that is possible too:
+
+```elixir
+MyRepo
+|> Traveller.start_stream(
+  MySchema,
+  mode: :offset,
+  order_by: :id
+)
+|> Enum.map(fn record_batch ->
+  # your logic here
+ end)
+```
 
 ## Installation
 
