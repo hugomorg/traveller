@@ -9,7 +9,13 @@ defmodule Traveller.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env()),
-      aliases: aliases()
+      aliases: aliases(),
+      description: "Traverse database tables simply and efficiently",
+      package: [
+        licenses: ["MIT"],
+        links: %{"GitHub" => "https://github.com/hugomorg/traveller"}
+      ],
+      source_url: "https://github.com/hugomorg/traveller"
     ]
   end
 
