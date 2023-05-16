@@ -74,7 +74,7 @@ by adding `traveller` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:traveller, "~> 0.1.0"}
+    {:traveller, "~> 0.1"}
   ]
 end
 ```
