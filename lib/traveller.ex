@@ -52,9 +52,38 @@ defmodule Traveller do
     # do something
   end)
   ```
+
+  If you want to decorate a specific module:
+
+  ```
+  defmodule YourModule do
+    use Traveller,
+      repo: Repo,
+      schema: Person,
+      start_after: "Albus",
+      stop_before: "Severus",
+      cursor: :first_name
+  end
+
+  Enum.each(YourModule.start_stream(), fn batch ->
+    # do something
+  end)
+  ```
   """
 
   import Ecto.Query
+
+  defmacro __using__(module_opts \\ []) do
+    repo = Keyword.fetch!(module_opts, :repo)
+    schema = Keyword.fetch!(module_opts, :schema)
+
+    quote do
+      def start_stream(opts \\ []) do
+        merged_opts = Keyword.merge(unquote(module_opts), opts)
+        unquote(__MODULE__).start_stream(unquote(repo), unquote(schema), merged_opts)
+      end
+    end
+  end
 
   @doc """
   Initiates a stream that walks through a database table.

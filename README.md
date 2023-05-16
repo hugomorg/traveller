@@ -2,6 +2,10 @@
 
 Traveller provides a easy, stream-based traversal of a database table. This library is well-suited for backfills, migrations etc. It can handle massive tables because of the lazy enumeration.
 
+## Function approach
+
+### With cursors
+
 The most basic use case is:
 
 ```elixir
@@ -28,6 +32,8 @@ MyRepo
  end)
 ```
 
+### With offset
+
 Assuming you have the correct indexes cursor-based iteration is normally much more efficient. But if you want to do an offset based traversal, for whatever reason that is possible too:
 
 ```elixir
@@ -40,6 +46,24 @@ MyRepo
 |> Enum.map(fn record_batch ->
   # your logic here
  end)
+```
+
+## Module approach
+
+You can also `use` it to bake certain options into a module. These can then be overridden later:
+
+```elixir
+defmodule YourModule do
+  use Traveller,
+    repo: Repo,
+    schema: Person,
+    cursor: :first_name,
+    chunk_size: 100
+end
+
+Enum.each(YourModule.start_stream(chunk_size: 50), fn batch ->
+  # do something
+end)
 ```
 
 ## Installation

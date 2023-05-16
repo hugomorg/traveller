@@ -290,4 +290,28 @@ defmodule TravellerTest do
       assert Enum.to_list(stream) == [[bruce_wayne, severus_snape, albus_dumbledore]]
     end
   end
+
+  describe "module use" do
+    defmodule TestModule do
+      use Traveller, repo: TestRepo, schema: Person, chunk_size: 1, cursor: :first_name
+    end
+
+    test "uses module defaults", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream = TestModule.start_stream()
+      assert Enum.to_list(stream) == [[albus_dumbledore], [bruce_wayne], [severus_snape]]
+    end
+
+    test "can override", %{
+      albus_dumbledore: albus_dumbledore,
+      bruce_wayne: bruce_wayne,
+      severus_snape: severus_snape
+    } do
+      stream = TestModule.start_stream(chunk_size: 100)
+      assert Enum.to_list(stream) == [[albus_dumbledore, bruce_wayne, severus_snape]]
+    end
+  end
 end
