@@ -212,18 +212,11 @@ defmodule Traveller do
            next_cursor: next_cursor,
            repo: repo,
            schema: schema,
-           start_after: start_after,
            mode: :cursor
          }
        ) do
     schema
-    |> then(fn query ->
-      if params[:inclusive] do
-        where(query, [s], field(s, ^cursor) >= ^start_after)
-      else
-        where(query, [s], field(s, ^cursor) > ^start_after)
-      end
-    end)
+    |> maybe_filter_by_start_after(params)
     |> then(fn query ->
       if stop_before = params[:stop_before] do
         where(query, [s], field(s, ^cursor) < ^stop_before)
@@ -254,18 +247,11 @@ defmodule Traveller do
            next_cursor: next_cursor,
            repo: repo,
            schema: schema,
-           start_after: start_after,
            mode: :cursor
          }
        ) do
     schema
-    |> then(fn query ->
-      if params[:inclusive] do
-        where(query, [s], field(s, ^cursor) <= ^start_after)
-      else
-        where(query, [s], field(s, ^cursor) < ^start_after)
-      end
-    end)
+    |> maybe_filter_by_start_after(params)
     |> then(fn query ->
       if stop_before = params[:stop_before] do
         where(query, [s], field(s, ^cursor) > ^stop_before)
@@ -431,5 +417,29 @@ defmodule Traveller do
 
   defp generate_next_cursor_fun(cursor) do
     &Map.fetch!(&1, cursor)
+  end
+
+  defp maybe_filter_by_start_after(query, %{
+         inclusive: true,
+         cursor: {:asc, cursor},
+         start_after: start_after
+       }) do
+    where(query, [s], field(s, ^cursor) >= ^start_after)
+  end
+
+  defp maybe_filter_by_start_after(query, %{cursor: {:asc, cursor}, start_after: start_after}) do
+    where(query, [s], field(s, ^cursor) > ^start_after)
+  end
+
+  defp maybe_filter_by_start_after(query, %{
+         inclusive: true,
+         cursor: {:desc, cursor},
+         start_after: start_after
+       }) do
+    where(query, [s], field(s, ^cursor) <= ^start_after)
+  end
+
+  defp maybe_filter_by_start_after(query, %{cursor: {:desc, cursor}, start_after: start_after}) do
+    where(query, [s], field(s, ^cursor) < ^start_after)
   end
 end
