@@ -140,6 +140,7 @@ defmodule Traveller do
       else
         cursor =
           Keyword.get_lazy(opts, :cursor, fn ->
+            # For now assume there is only one or zero fields for the pk
             pk = schema.__schema__(:primary_key)
 
             case pk do
@@ -148,14 +149,14 @@ defmodule Traveller do
             end
           end)
 
-        ref = make_ref()
-
         stop_before = Keyword.get(opts, :stop_before)
 
         # If no `start_after` is provided then we use a default
         # from the table. However since the cursor is exclusive we have
         # to specify the first query as inclusive, as if there was a virtual
         # cursor greater / lower than the one returned from here
+        ref = make_ref()
+
         {inclusive, start_after} =
           opts
           |> Keyword.get_lazy(:start_after, fn ->
@@ -252,6 +253,7 @@ defmodule Traveller do
          }
        )
        when is_list(cursor) do
+    # If a multi-field cursor then compose a query to sort properly
     {_, query} =
       cursor
       |> Enum.zip(List.wrap(start_after))
