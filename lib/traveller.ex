@@ -209,7 +209,6 @@ defmodule Traveller do
          params = %{
            chunk_size: chunk_size,
            cursor: {:asc, cursor},
-           next_cursor: next_cursor,
            repo: repo,
            schema: schema,
            mode: :cursor
@@ -221,24 +220,13 @@ defmodule Traveller do
     |> order_by(asc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
-    |> case do
-      [] ->
-        nil
-
-      results ->
-        if length(results) == chunk_size do
-          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
-        else
-          {results, :done}
-        end
-    end
+    |> handle_results(params)
   end
 
   defp iterate(
          params = %{
            chunk_size: chunk_size,
            cursor: {:desc, cursor},
-           next_cursor: next_cursor,
            repo: repo,
            schema: schema,
            mode: :cursor
@@ -250,24 +238,13 @@ defmodule Traveller do
     |> order_by(desc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
-    |> case do
-      [] ->
-        nil
-
-      results ->
-        if length(results) == chunk_size do
-          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
-        else
-          {results, :done}
-        end
-    end
+    |> handle_results(params)
   end
 
   defp iterate(
          params = %{
            chunk_size: chunk_size,
            cursor: cursor,
-           next_cursor: next_cursor,
            repo: repo,
            schema: schema,
            start_after: start_after,
@@ -284,17 +261,7 @@ defmodule Traveller do
     |> order_by(^cursor)
     |> limit(^chunk_size)
     |> repo.all()
-    |> case do
-      [] ->
-        nil
-
-      results ->
-        if length(results) == chunk_size do
-          {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
-        else
-          {results, :done}
-        end
-    end
+    |> handle_results(params)
   end
 
   defp iterate(params = %{mode: :offset, order_by: order_by}) when is_atom(order_by) do
@@ -318,17 +285,7 @@ defmodule Traveller do
     |> limit(^chunk_size)
     |> offset(^offset)
     |> repo.all()
-    |> case do
-      [] ->
-        nil
-
-      results ->
-        if length(results) == chunk_size do
-          {results, %{params | offset: offset + chunk_size}}
-        else
-          {results, :done}
-        end
-    end
+    |> handle_results(params)
   end
 
   defp iterate(:done) do
@@ -449,5 +406,23 @@ defmodule Traveller do
 
   defp maybe_filter_by_stop_before(query, _params) do
     query
+  end
+
+  defp handle_results([], _params), do: nil
+
+  defp handle_results(results, params = %{mode: :offset, offset: offset, chunk_size: chunk_size}) do
+    if length(results) == chunk_size do
+      {results, %{params | offset: offset + chunk_size}}
+    else
+      {results, :done}
+    end
+  end
+
+  defp handle_results(results, params = %{chunk_size: chunk_size, next_cursor: next_cursor}) do
+    if length(results) == chunk_size do
+      {results, %{drop_inclusive(params) | start_after: next_cursor.(results)}}
+    else
+      {results, :done}
+    end
   end
 end
