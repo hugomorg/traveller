@@ -209,34 +209,17 @@ defmodule Traveller do
   defp iterate(
          params = %{
            chunk_size: chunk_size,
-           cursor: {:asc, cursor},
+           cursor: {direction, cursor},
            repo: repo,
            schema: schema,
            mode: :cursor
          }
-       ) do
+       )
+       when direction in [:asc, :desc] do
     schema
     |> maybe_filter_by_start_after(params)
     |> maybe_filter_by_stop_before(params)
-    |> order_by(asc: ^cursor)
-    |> limit(^chunk_size)
-    |> repo.all()
-    |> handle_results(params)
-  end
-
-  defp iterate(
-         params = %{
-           chunk_size: chunk_size,
-           cursor: {:desc, cursor},
-           repo: repo,
-           schema: schema,
-           mode: :cursor
-         }
-       ) do
-    schema
-    |> maybe_filter_by_start_after(params)
-    |> maybe_filter_by_stop_before(params)
-    |> order_by(desc: ^cursor)
+    |> order_by([{^direction, ^cursor}])
     |> limit(^chunk_size)
     |> repo.all()
     |> handle_results(params)
