@@ -217,13 +217,7 @@ defmodule Traveller do
        ) do
     schema
     |> maybe_filter_by_start_after(params)
-    |> then(fn query ->
-      if stop_before = params[:stop_before] do
-        where(query, [s], field(s, ^cursor) < ^stop_before)
-      else
-        query
-      end
-    end)
+    |> maybe_filter_by_stop_before(params)
     |> order_by(asc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
@@ -252,13 +246,7 @@ defmodule Traveller do
        ) do
     schema
     |> maybe_filter_by_start_after(params)
-    |> then(fn query ->
-      if stop_before = params[:stop_before] do
-        where(query, [s], field(s, ^cursor) > ^stop_before)
-      else
-        query
-      end
-    end)
+    |> maybe_filter_by_stop_before(params)
     |> order_by(desc: ^cursor)
     |> limit(^chunk_size)
     |> repo.all()
@@ -441,5 +429,25 @@ defmodule Traveller do
 
   defp maybe_filter_by_start_after(query, %{cursor: {:desc, cursor}, start_after: start_after}) do
     where(query, [s], field(s, ^cursor) < ^start_after)
+  end
+
+  defp maybe_filter_by_stop_before(query, %{
+         cursor: {:asc, cursor},
+         stop_before: stop_before
+       })
+       when not is_nil(stop_before) do
+    where(query, [s], field(s, ^cursor) < ^stop_before)
+  end
+
+  defp maybe_filter_by_stop_before(query, %{
+         cursor: {:desc, cursor},
+         stop_before: stop_before
+       })
+       when not is_nil(stop_before) do
+    where(query, [s], field(s, ^cursor) > ^stop_before)
+  end
+
+  defp maybe_filter_by_stop_before(query, _params) do
+    query
   end
 end
